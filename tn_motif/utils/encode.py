@@ -9,7 +9,9 @@ BASE_IND = {base: ind for ind, base in enumerate(ALPHABET)}
 IND_BASE = {ind: base for ind, base in enumerate(ALPHABET)}
 
 
-def one_hot_encode_sequence(sequence, mapping_dict=BASE_IND, alphabet=ALPHABET):
+def one_hot_encode_sequence(
+    sequence, mapping_dict=BASE_IND, alphabet=ALPHABET
+) -> np.array:
     """
     One hot encode the DNA sequence using the provided alphabet mapping
     """

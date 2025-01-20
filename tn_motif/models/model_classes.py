@@ -23,6 +23,7 @@ class DNABindingCNN(nn.Module):
         """
         super(DNABindingCNN, self).__init__()
         self.model_params = model_params
+        # defining the model layers
         self.conv1 = nn.Conv1d(
             in_channels=self.model_params["alphabet_size"],
             out_channels=self.model_params["conv_channels"],
@@ -67,4 +68,37 @@ class DNABindingCNN(nn.Module):
         x = F.relu(self.fc1(x))
         x = self.dropout(x)
         x = self.fc2(x)
+        return x
+
+
+class DNABindingMLP(nn.Module):
+    """
+    A multi-layer perceptron model. Params must be specified in model_params
+    """
+
+    def __init__(
+        self,
+        model_params: dict,
+    ):
+        super(DNABindingMLP, self).__init__()
+        self.model_params = model_params
+        # TODO: generalize the following with a nn.ModuleDict to handle
+        # flexible number of layers
+        self.fc1 = nn.Linear(
+            self.model_params["alphabet_size"] * self.model_params["sequence_length"],
+            self.model_params["dense_layer_sizes"][0],
+        )
+        self.fc2 = nn.Linear(
+            self.model_params["dense_layer_sizes"][0],
+            self.model_params["dense_layer_sizes"][1],
+        )
+        self.fc3 = nn.Linear(self.model_params["dense_layer_sizes"][1], 1)
+        self.flatten = nn.Flatten()
+
+    def forward(self, x):
+        x = self.flatten(x)  # Shape: (batch, alphabet_size * sequence_length)
+        x = F.relu(self.fc1(x))  # Shape: (batch, dense_layer_sizes[0])
+        x = F.relu(self.fc2(x))  # Shape: (batch, dense_layer_sizes[1])
+        x = self.fc3(x)
+
         return x

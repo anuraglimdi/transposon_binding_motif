@@ -3,3 +3,4 @@ tn_motif.egg-info
 tn_motif/__pycache__
 tn_motif/utils/__pycache__
 tn_motif/models/__pycache__
+notebooks/.ipynb_checkpoints

@@ -2,7 +2,7 @@
 Module for handling dataset objects
 """
 
-from typing import Optional
+from typing import Optional, List, Tuple
 import pandas as pd
 import numpy as np
 from Bio import SeqIO
@@ -13,7 +13,7 @@ import tn_motif.utils.encode as enc
 
 # Dataset class for neighborhood sequence and counts
 class DNADataset(Dataset):
-    def __init__(self, sequences, counts):
+    def __init__(self, sequences: List[str], counts: List[float]):
         """
         Args:
             sequences (list of str): List of DNA sequences.
@@ -90,7 +90,7 @@ def process_inputs(
     position_col: str = "position",
     filter_sites_by: str = "neutral_gene",
     downsample_fraction: Optional[float] = None,
-):
+) -> Tuple[List[str], List[float]]:
     """
     Load the files containing the counts by position, and the reference genome.
 
@@ -105,6 +105,8 @@ def process_inputs(
     # downsample counts if specified:
     if downsample_fraction is not None:
         counts_table = counts_table.sample(frac=downsample_fraction)
+    # only keep sites defined as True in filter_sites_by
+    counts_table_filt = counts_table[counts_table[filter_sites_by]].copy()
     # get neighboring sequence for every site
     neighoring_sequence = [
         neighborhood_site(
@@ -114,9 +116,9 @@ def process_inputs(
             constant_seq=focal_TA_site,
         )
         # only picking sites that are true in the filter_sites_by column
-        for pos in counts_table[counts_table[filter_sites_by]][position_col]
+        for pos in counts_table_filt[position_col]
     ]
     # counts are log-transformed
-    log_counts = np.log10(counts_table[count_col] + 1)
+    log_counts = np.log10(counts_table_filt[count_col] + 1)
 
     return neighoring_sequence, log_counts
