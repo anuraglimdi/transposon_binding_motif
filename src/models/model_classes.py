@@ -18,6 +18,9 @@ class DNABindingCNN(nn.Module):
         self,
         model_params: dict,
     ):
+        """
+        All model parameters must be specified in the model_params dict
+        """
         super(DNABindingCNN, self).__init__()
         self.model_params = model_params
         self.conv1 = nn.Conv1d(
@@ -33,7 +36,7 @@ class DNABindingCNN(nn.Module):
         self.pool = nn.MaxPool1d(kernel_size=self.model_params["pool_kernel_size"])
         self.dropout = nn.Dropout(self.model_params["dropout_rate"])
         self.fc1 = nn.Linear(
-            self._compute_flattened_size(self.model_params["sequence_length"]),
+            self._compute_flattened_size(),
             self.model_params["dense_layer_size"],
         )
         self.fc2 = nn.Linear(self.model_params["dense_layer_size"], 1)
