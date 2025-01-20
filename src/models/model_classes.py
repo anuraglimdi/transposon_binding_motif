@@ -52,8 +52,8 @@ class DNABindingCNN(nn.Module):
         x = F.relu(self.conv2(x))  # Shape: (batch, conv_channels, L2)
         x = self.pool(x)  # Shape: (batch, conv_channels, L3)
         x = self.dropout(x)
-        x = x.view(x.size(0), -1)  # Flatten
+        x = x.view(x.size(0), -1)
         x = F.relu(self.fc1(x))
         x = self.dropout(x)
-        x = self.fc2(x)  # Prediction task here is regression
+        x = self.fc2(x)
         return x
