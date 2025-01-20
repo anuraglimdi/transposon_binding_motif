@@ -22,7 +22,7 @@ class ModelTraining:
         optimizer: str,
         learning_rate=1e-3,
         batch_size=32,
-        num_epochs=10,
+        num_epochs=12,
         k_folds=5,
         device=None,
         verbose=True,
@@ -57,7 +57,7 @@ class ModelTraining:
         )
         self.verbose = verbose
         # Note that we will only instantiate the optimizer when it comes to model training
-        self.optizimer = optimizer
+        self.optimizer = optimizer
         self.criterion = self._criterion_function(criterion)
 
     def _criterion_function(self, criterion: str):
@@ -81,6 +81,8 @@ class ModelTraining:
             return torch.optim.Adam(params=model.parameters(), lr=self.learning_rate)
         elif self.optimizer == "sgd":
             return torch.optim.SGD(params=model.parameters(), lr=self.learning_rate)
+        else:
+            raise NotImplementedError("Optimizers can only be ada")
 
     def train_final_model(self):
         """
@@ -172,7 +174,7 @@ class ModelTraining:
                 )  # Assuming model outputs shape [batch, 1]
 
                 all_preds.extend(outputs.cpu().numpy())
-                all_targets.extend(targets.cpu().numpy())
+                all_targets.extend(targets.squeeze(1).cpu().numpy())
                 loss = criterion(outputs, targets.squeeze(1))
                 # keep tracking loss over the epochs
                 total_loss += loss.item() * inputs.size(0)
@@ -217,13 +219,13 @@ class ModelTraining:
                 )
 
             # evaluate model on validation set
-            val_metrics_epoch = self.evaluate_model(val_loader, model, criterion)
+            val_metrics_epoch = self._evaluate_model(val_loader, model, criterion)
 
             if self.verbose:
                 val_loss, pearson_r, spearman_r = (
                     val_metrics_epoch["loss"],
                     val_metrics_epoch["pearson_r"],
-                    val_metrics_epoch["spearman_r"],
+                    val_metrics_epoch["spearman_rho"],
                 )
                 print(
                     f"    Validation Loss: {val_loss:.4f}, Pearson R: {pearson_r:.4f}, Spearman R: {spearman_r:.4f}"
@@ -243,7 +245,7 @@ class ModelTraining:
 
         for fold, (train_idx, val_idx) in enumerate(kfold.split(self.dataset), start=1):
             if self.verbose:
-                print(f"\n--- Fold {fold+1}/{self.k_folds} ---")
+                print(f"\n--- Fold {fold}/{self.k_folds} ---")
 
             train_subset = Subset(self.dataset, train_idx)
             val_subset = Subset(self.dataset, val_idx)
@@ -276,7 +278,7 @@ class ModelTraining:
         self.val_metrics = val_metrics
 
         # keeping this here in case I decide to return the metrics as well
-        return None
+        return train_losses, val_metrics
 
     def evaluate_test(self, test_loader, model):
         """

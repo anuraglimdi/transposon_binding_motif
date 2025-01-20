@@ -43,14 +43,22 @@ class DNABindingCNN(nn.Module):
 
     def _compute_flattened_size(self):
         # After conv1: L1 = sequence_length - kernel_size + 1
-        L1 = self.model_params["sequence_length"] - 10 + 1
+        L1 = (
+            self.model_params["sequence_length"]
+            - self.model_params["conv_kernel_size"]
+            + 1
+        )
         # After conv2: L2 = L1 - kernel_size + 1
         L2 = L1 - self.model_params["conv_kernel_size"] + 1
         # After pooling: L3 = L2 / pool size
         L3 = L2 // self.model_params["pool_kernel_size"]
         return self.model_params["conv_channels"] * L3  # number of filters after conv2
 
-    def forward(self, x: nn.Tensor):
+    def forward(self, x: torch.Tensor):
+        # by default the one-hot encoded sequences are of shape
+        # (length, alphabet size). For the convolutional layers,
+        # want the shape to be (alphabet_size, length)
+        x = x.transpose(1, 2)
         x = F.relu(self.conv1(x))  # Shape: (batch, conv_channels, L1)
         x = F.relu(self.conv2(x))  # Shape: (batch, conv_channels, L2)
         x = self.pool(x)  # Shape: (batch, conv_channels, L3)

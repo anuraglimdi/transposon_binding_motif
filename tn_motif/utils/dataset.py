@@ -2,16 +2,18 @@
 Module for handling dataset objects
 """
 
+from typing import Optional
 import pandas as pd
+import numpy as np
 from Bio import SeqIO
 import torch
 from torch.utils.data import Dataset, DataLoader
-import src.utils.encode as enc
+import tn_motif.utils.encode as enc
 
 
 # Dataset class for neighborhood sequence and counts
 class DNADataset(Dataset):
-    def __init__(self, sequences, counts, sequence_length):
+    def __init__(self, sequences, counts):
         """
         Args:
             sequences (list of str): List of DNA sequences.
@@ -20,7 +22,7 @@ class DNADataset(Dataset):
         """
         self.sequences = sequences
         self.labels = counts
-        self.sequence_length = sequence_length
+        self.sequence_length = len(sequences[0])
 
     def __len__(self):
         return len(self.sequences)
@@ -29,7 +31,9 @@ class DNADataset(Dataset):
         sequence = self.sequences[idx]
         label = self.labels[idx]
         encoded_sequence = enc.one_hot_encode_sequence(sequence)
-        return encoded_sequence, torch.tensor(label, dtype=torch.float32)
+        return torch.tensor(encoded_sequence, dtype=torch.float32), torch.tensor(
+            label, dtype=torch.float32
+        )
 
 
 def get_reference_genome_sequence(path_ref_genome: str) -> str:
@@ -54,6 +58,7 @@ def neighborhood_site(
       the entire sequence including the TA site
     """
     L = len(genome_seq)
+    position = int(position)
     if position - flank_length < 0:
         left_neighborhood = (
             genome_seq[(position - flank_length) % L : -1] + genome_seq[:position]
@@ -81,31 +86,37 @@ def process_inputs(
     path_ref_genome: str,
     flank_length: int = 25,
     focal_TA_site: bool = False,
-    count_col: str = "UMI_counts_t0",
+    count_col: str = "UMI_count_t0",
     position_col: str = "position",
+    filter_sites_by: str = "neutral_gene",
+    downsample_fraction: Optional[float] = None,
 ):
     """
     Load the files containing the counts by position, and the reference genome.
 
     Return the following:
     - neighboring_sequence List[str]: sequences to be used as input for prediction
-    - UMI corrected counts at site List[int]: target column to be predicted
+    - UMI corrected counts at site List[int]: target column to be predicted, log transformed
     """
     # load the reference sequence
-    genome_seq = enc.get_reference_genome_sequence(path_ref_genome=path_ref_genome)
+    genome_seq = get_reference_genome_sequence(path_ref_genome=path_ref_genome)
     # load the counts
-    counts_table = pd.read_csv(path_counts_table)
+    counts_table = pd.read_csv(path_counts_table, compression="gzip")
+    # downsample counts if specified:
+    if downsample_fraction is not None:
+        counts_table = counts_table.sample(frac=downsample_fraction)
     # get neighboring sequence for every site
     neighoring_sequence = [
-        enc.neighborhood_site(
+        neighborhood_site(
             genome_seq=genome_seq,
             position=pos,
             flank_length=flank_length,
             constant_seq=focal_TA_site,
         )
-        for pos in counts_table[position_col]
+        # only picking sites that are true in the filter_sites_by column
+        for pos in counts_table[counts_table[filter_sites_by]][position_col]
     ]
-    # counts
-    counts = counts_table[count_col]
+    # counts are log-transformed
+    log_counts = np.log10(counts_table[count_col] + 1)
 
-    return neighoring_sequence, counts
+    return neighoring_sequence, log_counts
